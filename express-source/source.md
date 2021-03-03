@@ -58,13 +58,79 @@ let port=3000;
 
 const server=http.createServer(function(req,res){
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
-    res.end("我是http创建的")
+    //请求的 URL 字符串
+    if(req.url==='/'){
+        res.end("我是http创建的");
+    }else{
+        res.writeHead(404)
+        res.end('Can get / ');
+    }
+    
 });
 
 server.listen(port,function(req,res){
     console.log(`Example app listening at http://localhost:${port}`)
-})
+}) 
 ```
 <blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
-如果上面的代码你成功运行控制台应该会出现<code>Example app listening at http://localhost:3000</code>，其中<a href="http://nodejs.cn/api/http.html#http_response_setheader_name_value">response.setHeader(name, value)</a>可以设置响应头。
+执行<code>node http.js</code>如果上面的代码你成功运行控制台应该会出现<code>Example app listening at http://localhost:3000</code>，浏览器打开3000端口会出现<code>我是http创建的</code>其中<a href="http://nodejs.cn/api/http.html#http_response_setheader_name_value">response.setHeader(name, value)</a>可以设置响应头。<br /><br />
+当然express也绝没有这么简单，不然还不如直接用http Api了，个人觉得express最强大的功能是路由功能，可以通过<code>express().get('/xx')、express().post('/xx')</code>来拦截。
 </blockquote>
+
+# 三、Express最核心的功能-路由
+
+<blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
+在上一小节中，我们使用了http模块来实现了一个和express一样的功能，而express最核心的功能我认为是路由功能，即get、post方法即可注册路由，如果是原生http写的话，可能大部分同学会陷入if else工程师，代码不仅不优雅而且难以维护，而express则简单的封装了一个路由的功能，回想一下我们写的一些express注册路由的代码：
+</blockquote>
+
+```js
+//router.js
+const express=require("express");
+const app=express();
+
+app.get('/',(req,res)=>{
+    res.send("你访问了/")
+})
+
+app.post('/jack',(req,res)=>{
+    res.send("你访问了/jack")
+})
+
+app.delete('/tom',(req,res)=>{
+    res.send("你访问了/tom")
+})
+
+app.put('/tony',(req,res)=>{
+    res.send("你访问了/tony")
+})
+
+app.listen(3000,()=>{
+    console.log("我正在监听....")
+})
+```
+
+<blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
+由以上代码我们可以得知express是一个函数，且返回一个实例，实例上存在一些方法如<code>post、delete、get、put、listen</code>方法，我们可以大体写出一些框架代码：
+</blockquote>
+
+```js
+module.exports=function createApplication(){ 
+    return {
+        get:function(){
+            
+        },
+        post:function(){
+
+        },
+        delete:function(){
+
+        },
+        put:function(){
+
+        },
+        listen:function(){
+
+        }
+    } 
+}
+```
