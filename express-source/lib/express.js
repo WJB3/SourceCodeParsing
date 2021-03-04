@@ -1,24 +1,9 @@
 
-const http=require('http');
+
+const Application=require('./Application');
 
 module.exports=function createApplication(){
-
-    return {
-        get:function(){
-
-        },
-        post:function(){
-
-        },
-        delete:function(){
-
-        },
-        put:function(){
-
-        },
-        listen:function(){
-
-        }
-    }
+ 
+    return new Application();
 
 }

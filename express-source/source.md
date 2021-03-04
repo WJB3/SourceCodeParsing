@@ -80,7 +80,7 @@ server.listen(port,function(req,res){
 # 三、Express最核心的功能-路由
 
 <blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
-在上一小节中，我们使用了http模块来实现了一个和express一样的功能，而express最核心的功能我认为是路由功能，即get、post方法即可注册路由，如果是原生http写的话，可能大部分同学会陷入if else工程师，代码不仅不优雅而且难以维护，而express则简单的封装了一个路由的功能，回想一下我们写的一些express注册路由的代码：
+在上一小节中，我们使用了http模块来实现了一个和express一样的功能，而express最核心的功能我认为是路由功能，即get、post方法即可注册路由，如果是原生http写的话，可能大部分同学会变成if else工程师，代码不仅不优雅而且难以维护，而express则简单的封装了一个路由的功能，回想一下我们写的一些express注册路由的代码：
 </blockquote>
 
 ```js
@@ -134,3 +134,135 @@ module.exports=function createApplication(){
     } 
 }
 ```
+
+<blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
+在脑海中回想路由，区别于前端路由，对于后端路由来说，当接收到客户端发来的HTTP请求，会根据请求的URL，来找到相应的路由，然后执行路由对应的回调函数，并将函数的返回值发送给客户端，我们可以抽象出下面这张图。
+</blockquote>
+
+![哈哈](./assets/router-relation.png)
+
+<blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
+由上图，我们可以看出将路由存在一个类似栈形结构中，当请求被服务端接受时，我们就可以从上向下依此匹配，当同时匹配到路径和方法时，就执行对应的回调函数。那么这个依此“向下匹配“的操作我们应该如果编写我们的代码呢？我们很容易想到for循环，如果匹配到就执行函数并且返回，最后一个为没有匹配到的404。<br /><br />
+我们新建lib/express来仿写我们的express，由上大概可以写出下面的代码，将router.js的express换成lib/express.js，并将send改成end（原生http中的res没有send这个方法），可以发现我们已经完美了相同的效果。
+</blockquote>
+
+```js
+//lib/express.js
+
+const http=require('http');
+
+module.exports=function createApplication(){
+
+    let app={};
+
+    let routers=[];
+ 
+    for(let i=0;i<http.METHODS.length;i++){
+        //http.METHODS定义了所有的http方法，需要转化为小写，别问为什么是大写，问就是规范
+        app[http.METHODS[i].toLowerCase()]=function(path,callback){
+            routers.push({
+                path,
+                method:http.METHODS[i],
+                callback
+            })
+        }
+    }
+
+    let server=http.createServer(function(req,res){  
+        const { method,url }=req; 
+        for(let i=1;i<routers.length;i++){
+            const { path,method:RouterMethod,callback }=routers[i];
+            if(path===url && RouterMethod===method){
+                return callback(req,res);
+            } 
+        }
+        return routers[0].callback(req,res);
+    })
+
+    app.listen=function(){
+        server.listen(...arguments);
+    }
+ 
+    routers.push({
+        path:"*",
+        method:"*",
+        callback:function(req,res){
+            res
+                .writeHead(404)
+                .end(`Cannot ${req.method} ${req.url}`)
+        }
+    })  
+
+    return app;
+
+} 
+```
+
+# 四、Application应用层使用类封装
+
+<blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
+在我们上面的lib/express中我们仿写了express的部分功能没有，其实就是2部分，创建应用，返回应用。我们的名字createApplication（创建应用）很好的印证了这一点，我们可以看下express的源码，可以看见其实他内部创建应用的这个过程其实是写在application.js文件里面，我们知道一个很好的库最重要的一点就是封装做得好，那我们这节就试着将创建应用的这个过程封装成一个类吧。<br /><br />
+新建lib/application.js文件，将创建应用的细节过程封装进这个方法里面，在主文件只引入。
+</blockquote>
+
+```js
+//lib/application.js
+const http=require('http');
+
+function Application(){
+    
+    this._router=[{
+        path:"*",
+        method:"*",
+        callback:function(req,res){
+            res
+                .writeHead(404)
+                .end(`Cannot ${req.method} ${req.url}`)
+        }
+    }];
+}
+
+for(let i=0;i<http.METHODS.length;i++){
+    //http.METHODS定义了所有的http方法，需要转化为小写，别问为什么是大写，问就是规范
+    Application.prototype[http.METHODS[i].toLowerCase()]=function(path,callback){
+        this._router.push({
+            path,
+            method:http.METHODS[i],
+            callback
+        })
+    }
+} 
+
+Application.prototype.listen=function(){
+    const self=this;
+    let server=http.createServer(function(req,res){  
+        const { method,url }=req; 
+        for(let i=1;i<self._router.length;i++){
+            const { path,method:RouterMethod,callback }=self._router[i];
+            if(path===url && RouterMethod===method){
+                return callback(req,res);
+            } 
+        }
+        return self._router[0].callback(req,res);
+    })
+ 
+    server.listen(...arguments);
+    
+}
+
+module.exports=Application;
+//---------------------------------------------------------------------------------
+//lib/express.js
+const Application=require('./Application');
+
+module.exports=function createApplication(){
+ 
+    return new Application();
+
+}
+```
+
+<blockquote style='padding: 10px; font-size: 1em; margin: 1em 0px; color: rgb(0, 0, 0); border-left: 5px solid rgba(0,189,170,1); background: rgb(239, 235, 233);line-height:1.5;'>
+运行代码我们可以发现实现了一模一样的效果！
+</blockquote>
+
